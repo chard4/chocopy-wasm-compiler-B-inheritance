@@ -249,21 +249,10 @@ export function tcClass(env: GlobalTypeEnv, cls : Class<null>) : Class<Type> {
   });
   cls.supers.forEach(sup => {
     const superclassdef = classMap.get(sup);
-    const supFields = env.classes.get(sup)[1];
-    supFields.forEach((fieldType, fieldName) => { // foreach on map runs on (value, key) order
-      if(!allFields.has(fieldName)) {
-        allFields.set(fieldName, fieldType); // update the environment w/ the inherited field
-        superclassdef.fields.forEach(fielddef => { // this is extremely ugly O(n) bc our global env doesn't store varinits, only field name + type
-          if (fielddef.name === fieldName) {
-            console.log(`${cls.name} is inheriting ${fielddef.name} from ${sup}`);
-            tFieldDefs.push(fielddef); // update this AST class struct w/ the inherited field def
-          } else {
-            console.log(fielddef.name);
-          }
-        });
-      } else {
-        throw new TypeCheckError("this should never happen");
-      }
+    superclassdef.fields.forEach(fielddef => { // this is extremely ugly O(n) bc our global env doesn't store varinits, only field name + type
+      console.log(`${cls.name} is inheriting ${fielddef.name} from ${sup}`);
+        tFieldDefs.push(fielddef); // update this AST class struct w/ the inherited field def
+        allFields.set(fielddef.name, fielddef.type);
     });
   });
  
