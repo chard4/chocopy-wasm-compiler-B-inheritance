@@ -41,7 +41,7 @@ defaultGlobalFunctions.set("print", [[CLASS("object")], NUM]);
 const classOrder: Array<String> = new Array<string>();
 // Map from class name to Class<A>
 // Needed because we need to populate all the super class fields and methods in subclass
-const classMap: Map<string,Class<null>> = new Map();
+const classMap: Map<string,Class<any>> = new Map();
 
 
 export const defaultTypeEnv = {
@@ -123,18 +123,16 @@ export function augmentTEnv(env : GlobalTypeEnv, program : Program<null>) : Glob
   program.inits.forEach(init => newGlobs.set(init.name, init.type));
   program.funs.forEach(fun => newFuns.set(fun.name, [fun.parameters.map(p => p.type), fun.ret]));
   program.classes.forEach(cls => {
-    classOrder.push(cls.name);
+    classOrder.push(cls.name); // a class may not declare a superclass whose classdef occurs after it in the parsed order
     const fields = new Map();
     const methods = new Map();
-    cls.fields.forEach(field => fields.set(field.name, field.type));
+    cls.fields.forEach(field => fields.set(field.name, field.type)); // only the explicitly declared fields and methods here; inherited ones are handled in tcClass
     cls.methods.forEach(method => methods.set(method.name, [method.parameters.map(p => p.type), method.ret]));
     const supers = cls.supers;
     newClasses.set(cls.name, [supers, fields, methods]);
   });
   return { globals: newGlobs, functions: newFuns, classes: newClasses };
 }
-
-
 
 export function tc(env : GlobalTypeEnv, program : Program<null>) : [Program<Type>, GlobalTypeEnv] {
   const locals = emptyLocalTypeEnv();
@@ -210,13 +208,14 @@ export function tcClass(env: GlobalTypeEnv, cls : Class<null>) : Class<Type> {
   // Check whether super-classes are defined before the definition of current class
   const clsOrder = classOrder.indexOf(cls.name);
   cls.supers.forEach(sup => {
-    if(sup === "int" || sup === "bool")
-    if(!env.classes.has(sup)){
+    if(sup === "int" || sup === "bool") {
+      // ??? why is this here? it seems redundant with the below conditional
+    }
+    if(!env.classes.has(sup)) { // this feels redundant w/ the classOrder check
       throw new TypeCheckError(`Super-class not defined : ${sup}`);
     }
-    
     const supOrder = classOrder.indexOf(sup);
-    if (supOrder > clsOrder) {
+    if (supOrder >= clsOrder) {
       throw new TypeCheckError(`Super-class not defined : ${sup}`);
     }
   });
@@ -224,28 +223,49 @@ export function tcClass(env: GlobalTypeEnv, cls : Class<null>) : Class<Type> {
   classMap.set(cls.name,cls);
   // cls -> Class<A> : Field: VarInit<A>[]
   // GlobalEnv
-  const tFields = cls.fields.map(field => tcInit(env, field));
-  // Check whether fields overlap between super and sub class
+  // Check whether fields overlap between superclasses and subclass
+  
+  // it suffices to only check one level up because we enforce an ordering of super and subclasses
+  /*
+  class A(object)
+  class B(A)
+  class C(B)
 
-  //
-  const curFields = env.classes.get(cls.name)[1];
-  cls.fields.forEach(field => {
+  by the time we typecheck C, B and A have already been typechecked
+  therefore, env.classes.get("B")[1] should in theory contain the fields B inherits from A
+  
+  1) *this* class's fields should not attempt to redefine an inherited field
+  2) add all inherited fields to *this* class's field map
+  */
+  const tFieldDefs = cls.fields.map(field => tcInit(env, field)); // *this* class' parsed field declarations; does not include any inherited fields yet
+  const allFields = env.classes.get(cls.name)[1];
+  tFieldDefs.forEach(field => {
     cls.supers.forEach(sup => {
       const supFields = env.classes.get(sup)[1];
       if(supFields.has(field.name)) {
         throw new TypeCheckError(`Cannot re-define attribute ${field.name}`);
       }
-      const supClass = classMap.get(sup);
-      supClass.fields.forEach((b)=>{
-        var fieldName = b.name;
-        if(!curFields.has(fieldName)){
-          tFields.unshift(b);
-          curFields.set(b.name,b.type);
-        }
-      })
     });
   });
- 
+  cls.supers.forEach(sup => {
+    const superclassdef = classMap.get(sup);
+    const supFields = env.classes.get(sup)[1];
+    supFields.forEach((fieldType, fieldName) => { // foreach on map runs on (value, key) order
+      if(!allFields.has(fieldName)) {
+        allFields.set(fieldName, fieldType); // update the environment w/ the inherited field
+        superclassdef.fields.forEach(fielddef => { // this is extremely ugly O(n) bc our global env doesn't store varinits, only field name + type
+          if (fielddef.name === fieldName) {
+            console.log(`${cls.name} is inheriting ${fielddef.name} from ${sup}`);
+            tFieldDefs.push(fielddef); // update this AST class struct w/ the inherited field def
+          } else {
+            console.log(fielddef.name);
+          }
+        });
+      } else {
+        throw new TypeCheckError("this should never happen");
+      }
+    });
+  });
   
   const tMethods = cls.methods.map(method => tcDef(env, method));
   
@@ -280,8 +300,9 @@ export function tcClass(env: GlobalTypeEnv, cls : Class<null>) : Class<Type> {
       }
     });
   });
-
-  return {a: NONE, name: cls.name, fields: tFields, methods: tMethods};
+  const newClassDef = {a: NONE, name: cls.name, fields: tFieldDefs, methods: tMethods}; // update the global map w/ the updated fields/methods, including all inherited ones
+  classMap.set(cls.name, newClassDef);
+  return newClassDef;
 }
 
 // export function hasField(env:GlobalTypeEnv,className:string,fieldName:string): boolean {

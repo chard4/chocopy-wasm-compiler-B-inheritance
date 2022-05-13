@@ -177,11 +177,11 @@ function codeGenExpr(expr: Expr<Type>, env: GlobalEnv): Array<string> {
       valStmts.push(`(call $${expr.name})`);
       return valStmts;
     
-    case "method_call":
-      // we have expr.classname
-      return [
+    // case "method_call":
+    //   // we have expr.classname
+    //   return [
 
-      ];
+    //   ];
     case "alloc":
       return [
         ...codeGenValue(expr.amount, env),

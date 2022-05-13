@@ -123,7 +123,7 @@ export async function run(source : string, config: Config) : Promise<[Value, Glo
       ${returnExpr}
     )
   )`;
-  console.log(wasmSource);
+  // console.log(wasmSource); -- commented out bc my console output was getting cut off, and i need to fix the typechecker
   const [result, instance] = await runWat(wasmSource, importObject);
 
   return [PyValue(progTyp, result), compiled.newEnv, tenv, compiled.functions, instance];
