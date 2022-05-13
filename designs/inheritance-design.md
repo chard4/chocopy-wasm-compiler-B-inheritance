@@ -267,3 +267,18 @@ We think the resulting table should look something like
 We would put ```A$foo``` in twice and note A's offset as 0 while B's offset is 1.
 This way, if something like ```B().foo(0)``` is called, then the WASM will know to reference the ```A$foo``` at offset 1.
 
+## new test:
+```
+class A(object):
+    a : int = 1
+class B(A):
+    b : int = 1
+class C(B):
+    c : bool = False
+x : C = None
+x = C()
+print(x.a)
+print(x.b)
+print(x.c)
+```
+We expect that C inherits 2 fields for a total of 3.
