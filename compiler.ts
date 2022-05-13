@@ -4,7 +4,8 @@ import { BOOL, NONE, NUM } from "./utils";
 
 export type GlobalEnv = {
   globals: Map<string, boolean>;
-  classes: Map<string, Map<string, [number, Value<Type>]>>;  
+  // classes: Map<string, Map<string, [number, Value<Type>]>>; // class name -> {member, [offset, value]}
+  classes: Map<string, Map<string, [number, Value<Type>]>>; // class name -> [{member, [offset, value]}, {method, vtable offset}]
   locals: Set<string>;
   labels: Array<string>;
   offset: number;
@@ -101,6 +102,37 @@ return [
       ]
 which is really confusing to me
 i guess what i should do is figure out what a method call codegen looks like at base
+
+...
+func(x)
+-->
+(global.get $x)
+(call $func)
+
+...
+a = A()
+a.f(x, y)
+-->
+constructor + assign
+  call $alloc
+  (global.set $newObj1)
+  (global.get $newObj1)
+  (call $A$__init__)
+  (local.set $$last)
+  (global.get $newObj1)
+  (global.set $a)
+---
+method call
+  (global.get $a)
+  (call $assert_not_none)
+  (local.set $$last)
+  (global.get $a)
+  (global.get $x)
+  (global.get $y)
+  (call $A$f)
+basically we need to replace the call w/ a call_indirect
+direct call is only for functions
+
 */
 // function codeGenVTable(ast: Program<Type>, env: GlobalEnv): Array<string> {
   
@@ -196,10 +228,19 @@ function codeGenExpr(expr: Expr<Type>, env: GlobalEnv): Array<string> {
       return [...leftStmts, ...rightStmts, `(call $${expr.name})`]
 
     case "call":
+      // expr.arguments[0] is self if it's a method call
+      // so in theory we don't have to add "method_call" to the IR
+      // but it would probably be sooo much easier to have a method_call IR
+      // because then we have direct access to the class the method belongs to potentially
       var valStmts = expr.arguments.map((arg) => codeGenValue(arg, env)).flat();
       valStmts.push(`(call $${expr.name})`);
       return valStmts;
+    
+    case "method_call":
+      // we have expr.classname
+      return [
 
+      ];
     case "alloc":
       return [
         ...codeGenValue(expr.amount, env),
