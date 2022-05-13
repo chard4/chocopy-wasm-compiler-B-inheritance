@@ -256,7 +256,16 @@ export function tcClass(env: GlobalTypeEnv, cls : Class<null>) : Class<Type> {
     });
   });
  
-  
+  /*
+  this is currently wrong:
+  running tcDef here on this class's methods before we populate it with all the inherited stuff
+  means tcDef will fail if we call an inherited method e.g. self.inherited()
+  therefore, a better unified pattern is to populate this class's global state w/ all the inherited members and methods, since we know they're all typechecked and safe
+  and then typecheck this class's members and methods
+  when updating global state, if this class attempts to redefine a member, then we error out
+  if this class attempts to redefine a method, then we allow with caveats I think
+  */
+
   const tMethods = cls.methods.map(method => tcDef(env, method));
   
   // To check if we have method overwritten with different signature in the derived class
