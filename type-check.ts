@@ -266,6 +266,7 @@ export function tcClass(env: GlobalTypeEnv, cls : Class<null>) : Class<Type> {
       }
     });
   });
+ 
   
   const tMethods = cls.methods.map(method => tcDef(env, method));
   
