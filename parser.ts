@@ -433,7 +433,6 @@ export function traverseClass(c : TreeCursor, s : string) : Class<null> {
   }
   var supers : Array<string> = [];
   c.firstChild();
-  console.log("traversed supers",superExpr);
   superExpr.forEach((e)=>{
     if(e.tag === "id") {
       if(e.name !== "object"){
