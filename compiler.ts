@@ -79,65 +79,6 @@ export function compile(ast: Program<Type>, env: GlobalEnv) : CompileResult {
   };
 }
 
-/*
-the way this https://ucsd-cse231-w21.github.io/objects/ explains it
-if we want to call l.sum()
-then we first need to have the address of l on the stack (the reference)
-i think in class we said the object itself would have the offset in it or something
-which is why they do the first (i32.load)
-but perhapents we can store that info globally instead of per object
-
-<stack has all the args + self on there>
-(i32.load) <-- we want to load the offset from the object data itself
-(i32.add <method offset -- this one is not a bytes thing so no *4>)
-(i32.load <address of l>) --> for self argument
-(call_indirect (type $return_i32))
-
-ok so ast -> ir loses the method-call distinction
-it gets turned into
-return [
-        [...objinits, ...arginits],
-        [...objstmts, checkObj, ...argstmts],
-        callMethod
-      ]
-which is really confusing to me
-i guess what i should do is figure out what a method call codegen looks like at base
-
-...
-func(x)
--->
-(global.get $x)
-(call $func)
-
-...
-a = A()
-a.f(x, y)
--->
-constructor + assign
-  call $alloc
-  (global.set $newObj1)
-  (global.get $newObj1)
-  (call $A$__init__)
-  (local.set $$last)
-  (global.get $newObj1)
-  (global.set $a)
----
-method call
-  (global.get $a)
-  (call $assert_not_none)
-  (local.set $$last)
-  (global.get $a)
-  (global.get $x)
-  (global.get $y)
-  (call $A$f)
-basically we need to replace the call w/ a call_indirect
-direct call is only for functions
-
-*/
-// function codeGenVTable(ast: Program<Type>, env: GlobalEnv): Array<string> {
-  
-// }
-
 function codeGenStmt(stmt: Stmt<Type>, env: GlobalEnv): Array<string> {
   switch (stmt.tag) {
     case "store":

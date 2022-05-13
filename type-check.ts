@@ -226,28 +226,26 @@ export function tcClass(env: GlobalTypeEnv, cls : Class<null>) : Class<Type> {
   // GlobalEnv
   const tFields = cls.fields.map(field => tcInit(env, field));
   // Check whether fields overlap between super and sub class
+
+  //
+  const curFields = env.classes.get(cls.name)[1];
   cls.fields.forEach(field => {
     cls.supers.forEach(sup => {
       const supFields = env.classes.get(sup)[1];
       if(supFields.has(field.name)) {
         throw new TypeCheckError(`Cannot re-define attribute ${field.name}`);
       }
-      //const supClass = classMap.get(sup);
-
+      const supClass = classMap.get(sup);
+      supClass.fields.forEach((b)=>{
+        var fieldName = b.name;
+        if(!curFields.has(fieldName)){
+          tFields.unshift(b);
+          curFields.set(b.name,b.type);
+        }
+      })
     });
   });
-  // A(B,C)
-  // B->a:int 
-  // C-> a:int
-
-  // Push super class fields to derived class env
-  const curFields = env.classes.get(cls.name)[1];
-  cls.supers.forEach(sup => {
-    const supFields = env.classes.get(sup)[1];
-    supFields.forEach( (type, name) => {
-      curFields.set(name, type);
-    });
-  });
+ 
   
   const tMethods = cls.methods.map(method => tcDef(env, method));
   
