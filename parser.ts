@@ -431,16 +431,14 @@ export function traverseClass(c : TreeCursor, s : string) : Class<null> {
   if (superExpr.length == 0) {
     throw new Error(`Class must have at least one super class: ${className}`);
   }
-  var supers:Array<string> = [];
+  var supers : Array<string> = [];
   c.firstChild();
-  
+  console.log("traversed supers",superExpr);
   superExpr.forEach((e)=>{
-    c.nextSibling();
-    if(e.tag==="id"){
-      if(e.name!=="object"){
+    if(e.tag === "id") {
+      if(e.name !== "object"){
         supers.push(e.name);
       }
-      
     } else {
       throw new Error(`Parse Error near token ${s.substring(c.from, c.to)}`);
     }
